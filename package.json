@@ -1,10 +1,12 @@
 {
   "name": "kodekalesh_autominds",
-  "version": "1.0.0",
-  "description": "",
+  "version": "2.0.0",
+  "description": "Smart Inventory Management System",
   "main": "backend/server.js",
   "scripts": {
     "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "seed": "node backend/scripts/seed.js",
     "lint": "eslint .",
     "test": "jest"
   },

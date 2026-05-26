@@ -186,3 +186,238 @@ export async function fetchComplianceData() {
     ];
 }
 
+// ===== NEW: ORDER MANAGEMENT API FUNCTIONS =====
+
+export async function createOrder(orderData) {
+    const response = await fetch(`${API_URL}/api/orders`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(orderData)
+    });
+    if (!response.ok) throw new Error('Failed to create order');
+    return await response.json();
+}
+
+export async function fetchOrders(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.supplierId) params.append('supplierId', filters.supplierId);
+    if (filters.materialType) params.append('materialType', filters.materialType);
+
+    const response = await fetch(`${API_URL}/api/orders?${params}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getOrderById(orderId) {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Order not found');
+    return await response.json();
+}
+
+export async function updateOrderStatus(orderId, statusData) {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(statusData)
+    });
+    if (!response.ok) throw new Error('Failed to update order');
+    return await response.json();
+}
+
+export async function cancelOrder(orderId) {
+    const response = await fetch(`${API_URL}/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error('Failed to cancel order');
+    return await response.json();
+}
+
+export async function getDelayedOrders() {
+    const response = await fetch(`${API_URL}/api/orders/delayed`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+// ===== NEW: SUPPLIER MANAGEMENT API FUNCTIONS =====
+
+export async function createSupplier(supplierData) {
+    const response = await fetch(`${API_URL}/api/suppliers`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(supplierData)
+    });
+    if (!response.ok) throw new Error('Failed to create supplier');
+    return await response.json();
+}
+
+export async function getAllSuppliers(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.materialType) params.append('materialType', filters.materialType);
+    if (filters.contractStatus) params.append('contractStatus', filters.contractStatus);
+
+    const response = await fetch(`${API_URL}/api/suppliers?${params}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getSupplierById(supplierId) {
+    const response = await fetch(`${API_URL}/api/suppliers/${supplierId}`, { headers: getAuthHeaders() });
+    if (!response.ok) throw new Error('Supplier not found');
+    return await response.json();
+}
+
+export async function updateSupplier(supplierId, supplierData) {
+    const response = await fetch(`${API_URL}/api/suppliers/${supplierId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(supplierData)
+    });
+    if (!response.ok) throw new Error('Failed to update supplier');
+    return await response.json();
+}
+
+export async function placeOrderInquiry(supplierId, inquiryData) {
+    const response = await fetch(`${API_URL}/api/suppliers/${supplierId}/order-inquiry`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(inquiryData)
+    });
+    return await response.json();
+}
+
+export async function getSupplierMarketplace(materialType = null) {
+    const params = materialType ? `?materialType=${materialType}` : '';
+    const response = await fetch(`${API_URL}/api/marketplace/suppliers${params}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+// ===== NEW: DEMAND FORECASTING API FUNCTIONS =====
+
+export async function getDemandForecast(materialType) {
+    const response = await fetch(`${API_URL}/api/forecast?materialType=${materialType}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getAllForecasts() {
+    const response = await fetch(`${API_URL}/api/forecasts`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function generateAllForecasts() {
+    const response = await fetch(`${API_URL}/api/forecasts/generate-all`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+    });
+    return await response.json();
+}
+
+export async function getDemandAnalysis(materialType, monthsBack = 6) {
+    const response = await fetch(`${API_URL}/api/analysis/demand?materialType=${materialType}&monthsBack=${monthsBack}`, 
+        { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getSeasonalAnalysis(materialType) {
+    const response = await fetch(`${API_URL}/api/analysis/seasonal?materialType=${materialType}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getReorderRecommendations() {
+    const response = await fetch(`${API_URL}/api/recommendations/reorder`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function compareDemandSupply() {
+    const response = await fetch(`${API_URL}/api/analysis/demand-vs-supply`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+// ===== NEW: WEATHER & DELAY PREDICTION =====
+
+export async function checkWeatherDelays() {
+    try {
+        const response = await fetch(`${API_URL}/api/weather/alerts`, { headers: getAuthHeaders() });
+        return await response.json();
+    } catch (error) {
+        console.error('Error checking weather delays:', error);
+        return { alerts: [] };
+    }
+}
+
+export async function predictDeliveryDelay(supplierId, expectedDeliveryDate) {
+    const response = await fetch(`${API_URL}/api/weather/predict-delay`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ supplierId, expectedDeliveryDate })
+    });
+    return await response.json();
+}
+
+export async function getWeatherForecast(latitude, longitude, location = null) {
+    const params = new URLSearchParams({ latitude, longitude });
+    if (location) params.append('location', location);
+    
+    const response = await fetch(`${API_URL}/api/weather/forecast?${params}`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getAllWeatherAlerts() {
+    const response = await fetch(`${API_URL}/api/weather/all-alerts`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function resolveWeatherAlert(alertId, resolution) {
+    const response = await fetch(`${API_URL}/api/weather/alerts/${alertId}/resolve`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ resolution })
+    });
+    return await response.json();
+}
+
+export async function getWeatherImpactAnalysis() {
+    const response = await fetch(`${API_URL}/api/weather/impact-analysis`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+// ===== NEW: INVENTORY MANAGEMENT FUNCTIONS (DB) =====
+
+export async function getInventoryHealth() {
+    const response = await fetch(`${API_URL}/api/inventory-health`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function getLowStockAlerts() {
+    const response = await fetch(`${API_URL}/api/low-stock-alerts`, { headers: getAuthHeaders() });
+    return await response.json();
+}
+
+export async function consumeInventory(itemId, quantity) {
+    const response = await fetch(`${API_URL}/api/inventory/${itemId}/consume`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ quantity })
+    });
+    if (!response.ok) throw new Error('Failed to consume inventory');
+    return await response.json();
+}
+
+export async function createInventoryItem(itemData) {
+    const response = await fetch(`${API_URL}/api/inventory`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(itemData)
+    });
+    if (!response.ok) throw new Error('Failed to create inventory item');
+    return await response.json();
+}
+
+export async function updateInventoryItem(itemId, updateData) {
+    const response = await fetch(`${API_URL}/api/inventory/${itemId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updateData)
+    });
+    if (!response.ok) throw new Error('Failed to update inventory item');
+    return await response.json();
+}
+
