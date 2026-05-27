@@ -7,5 +7,6 @@ router.get('/raw-materials', controller.getRawMaterials);
 router.get('/raw-materials/batches', controller.getRawMaterialBatches);
 router.get('/traceability', controller.getTraceability);
 router.get('/traceability/batch/:id', controller.getBatchDetails);
+router.get('/alerts', controller.getAlerts);
 
 module.exports = router;

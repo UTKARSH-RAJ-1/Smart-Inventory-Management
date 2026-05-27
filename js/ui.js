@@ -215,16 +215,49 @@ function renderAlerts(alerts) {
   list.innerHTML = '';
 
   if (alerts.length === 0) {
-    list.innerHTML = '<li>No active alerts. Operations normal.</li>';
+    list.innerHTML = '<li style="color: #2ea043; padding: 10px; background: rgba(46, 160, 67, 0.1); border-radius: 8px; text-align: center;">✅ No active alerts. Operations normal.</li>';
     return;
   }
 
   alerts.forEach(alert => {
     const li = document.createElement('li');
+    let severityColor = '#d29922'; // warning
+    let icon = '⚠️';
+    let bgColor = 'rgba(210, 153, 34, 0.1)';
+    
+    if (alert.severity === 'critical') {
+      severityColor = '#f85149';
+      icon = '🔴';
+      bgColor = 'rgba(248, 81, 73, 0.1)';
+    } else if (alert.severity === 'high') {
+      severityColor = '#db6d28';
+      icon = '🟠';
+      bgColor = 'rgba(219, 109, 40, 0.1)';
+    } else if (alert.severity === 'medium') {
+      severityColor = '#d29922';
+      icon = '🟡';
+      bgColor = 'rgba(210, 153, 34, 0.1)';
+    }
+    
+    li.className = 'alert-item';
+    li.style.cssText = `
+      padding: 12px;
+      margin-bottom: 10px;
+      background: ${bgColor};
+      border-left: 4px solid ${severityColor};
+      border-radius: 6px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    `;
+    
     li.innerHTML = `
-    <span style="color: #d29922;">⚠️ ${alert.alertType}</span>
-      <span>${alert.message}</span>
-  `;
+      <span style="font-size: 1.2em; min-width: 24px;">${icon}</span>
+      <div style="flex: 1;">
+        <strong style="color: ${severityColor};">${alert.alertType}</strong>
+        <p style="margin: 4px 0 0 0; color: #8b949e; font-size: 0.9em;">${alert.message}</p>
+      </div>
+    `;
     list.appendChild(li);
   });
 }
@@ -235,9 +268,19 @@ export async function renderRawMaterialsPage() {
   const mainContent = document.getElementById('content-area');
   mainContent.innerHTML = `
     <h2 class="page-title">Raw Materials Inventory</h2>
-      <div id="page-content-container">
-        <p class="loading">Loading raw materials...</p>
+    <div class="dashboard-grid">
+      <div class="card glass-card">
+        <h3>Stock Levels</h3>
+        <canvas id="rawMatStockChart"></canvas>
       </div>
+      <div class="card glass-card">
+        <h3>Days of Production Left</h3>
+        <canvas id="rawMatDaysChart"></canvas>
+      </div>
+    </div>
+    <div id="page-content-container" style="margin-top: 20px;">
+      <p class="loading">Loading raw materials...</p>
+    </div>
   `;
 
   const container = mainContent.querySelector('#page-content-container');
@@ -249,7 +292,78 @@ export async function renderRawMaterialsPage() {
     }
   });
 
+  const rawMaterialData = await API.fetchRawMaterials();
+  
+  // Render Charts
+  renderRawMaterialCharts(rawMaterialData);
+  
+  // Render Cards
   await renderRawMaterialsList();
+}
+
+function renderRawMaterialCharts(rawMaterialData) {
+  // Stock Levels Chart
+  const ctxStock = document.getElementById('rawMatStockChart');
+  if (ctxStock) {
+    new Chart(ctxStock.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: rawMaterialData.map(m => m.name),
+        datasets: [{
+          label: 'Current Stock (kg/L)',
+          data: rawMaterialData.map(m => m.current_stock),
+          backgroundColor: 'rgba(88, 166, 255, 0.6)',
+          borderColor: '#58a6ff',
+          borderWidth: 1
+        }, {
+          label: 'Max Capacity (kg/L)',
+          data: rawMaterialData.map(m => m.max_stock),
+          backgroundColor: 'rgba(88, 166, 255, 0.2)',
+          borderColor: '#58a6ff',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { position: 'bottom', labels: { color: '#8b949e' } } },
+        scales: {
+          y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#8b949e' } },
+          x: { grid: { display: false }, ticks: { color: '#8b949e', maxRotation: 45, minRotation: 0 } }
+        }
+      }
+    });
+  }
+
+  // Days of Production Left Chart
+  const ctxDays = document.getElementById('rawMatDaysChart');
+  if (ctxDays) {
+    const daysData = rawMaterialData.map(m => (m.current_stock / m.daily_consumption).toFixed(1));
+    
+    new Chart(ctxDays.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: rawMaterialData.map(m => m.name),
+        datasets: [{
+          label: 'Days of Production',
+          data: daysData,
+          backgroundColor: daysData.map(days => days < 7 ? '#f85149' : days < 15 ? '#d29922' : '#2ea043'),
+          borderColor: daysData.map(days => days < 7 ? '#f85149' : days < 15 ? '#d29922' : '#2ea043'),
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#8b949e' } },
+          y: { grid: { display: false }, ticks: { color: '#8b949e' } }
+        }
+      }
+    });
+  }
 }
 
 async function renderRawMaterialsList() {
@@ -529,33 +643,71 @@ async function renderSupplierList(material) {
   const data = await API.fetchSuppliers(material);
   container.innerHTML = '';
 
-  data.forEach((supplier) => {
-    const maxQty = supplier.max_quantity || supplier.max_qantity; // handle typo in potential data
-    const percentAvailable = (supplier.quantity / maxQty) * 100;
+  // Filter by material type to ensure correct suppliers are shown
+  const filteredData = data.filter(supplier => !supplier.materialType || supplier.materialType === material.toLowerCase());
+
+  filteredData.forEach((supplier) => {
+    // Handle both database field names and static data field names
+    const quantity = supplier.currentInventory || supplier.quantity || 0;
+    const maxQty = supplier.maxInventory || supplier.max_quantity || supplier.max_qantity || (quantity || 0) * 2;
+    const price = supplier.unitPrice || supplier.price || 0;
+    const deliveryTime = supplier.averageDeliveryDays || supplier.delivery_time || 0;
+    
+    const percentAvailable = maxQty > 0 ? (quantity / maxQty) * 100 : 0;
 
     const itemCard = document.createElement('div');
     itemCard.className = 'supplier-item glass-card';
 
+    // Generate star rating display
+    const ratingValue = supplier.rating || 4.5;
+    const ratingStars = ratingValue ? '⭐'.repeat(Math.floor(ratingValue)) + (ratingValue % 1 >= 0.5 ? '✨' : '') : '';
+    
+    // Quality score styling - use reliabilityScore or quality_score
+    let qualityColor = '#f85149';
+    const qualityScore = supplier.reliabilityScore || supplier.quality_score || 85;
+    if (qualityScore >= 90) qualityColor = '#2ea043';
+    else if (qualityScore >= 85) qualityColor = '#58a6ff';
+    else if (qualityScore >= 80) qualityColor = '#d29922';
+
     itemCard.innerHTML = `
-    <h3>${supplier.name}</h3>
-      <div class="quantity-bar-container">
-        <p class="bar-label">Supply Open for Sale:</p>
-        <div class="quantity-bar-bg">
-          <div class="quantity-bar-fill" style="width: ${percentAvailable}%;"></div>
-        </div>
-        <div class="quantity-bar-text">${supplier.quantity.toLocaleString()} / ${maxQty.toLocaleString()} kg</div>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+      <div>
+        <h3 style="margin: 0 0 5px 0;">${supplier.name}</h3>
+        <p style="margin: 0; color: #8b949e; font-size: 0.9em;">📍 ${supplier.location || 'N/A'}</p>
       </div>
-      <div class="supplier-details">
-        <div class="detail-group">
-          <div class="detail-item price">
-            Price: ₹${supplier.price.toFixed(2)} / kg
-          </div>
-          <div class="detail-item">
-            <strong>Delivery:</strong> ${supplier.delivery_time} ${supplier.delivery_time > 1 ? 'days' : 'day'}
-          </div>
-        </div>
-        <button class="order-inquiry-btn">Order Inquiry</button>
+      <div style="text-align: right;">
+        <div style="font-size: 0.9em; margin-bottom: 5px;">${ratingStars}</div>
+        <div style="color: ${qualityColor}; font-weight: bold; font-size: 0.85em;">Quality: ${qualityScore}%</div>
       </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+      <span style="background: rgba(88, 166, 255, 0.2); padding: 4px 10px; border-radius: 20px; font-size: 0.85em; color: #58a6ff;">
+        🏆 ${supplier.contractStatus ? supplier.contractStatus.charAt(0).toUpperCase() + supplier.contractStatus.slice(1) : supplier.certification || 'Certified'}
+      </span>
+    </div>
+
+    <div class="quantity-bar-container">
+      <p class="bar-label">Available Inventory:</p>
+      <div class="quantity-bar-bg">
+        <div class="quantity-bar-fill" style="width: ${percentAvailable}%; background: ${percentAvailable > 75 ? '#2ea043' : percentAvailable > 50 ? '#58a6ff' : percentAvailable > 25 ? '#d29922' : '#f85149'};"></div>
+      </div>
+      <div class="quantity-bar-text">${(quantity || 0).toLocaleString()} / ${(maxQty || 0).toLocaleString()} kg</div>
+    </div>
+
+    <div class="supplier-details">
+      <div class="detail-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <div class="detail-item" style="background: rgba(88, 166, 255, 0.1); padding: 10px; border-radius: 6px;">
+          <span style="font-size: 0.85em; color: #8b949e;">💰 Price</span>
+          <div style="font-weight: bold; color: var(--primary-color);">₹${((price || 0).toFixed(2))}/kg</div>
+        </div>
+        <div class="detail-item" style="background: rgba(88, 166, 255, 0.1); padding: 10px; border-radius: 6px;">
+          <span style="font-size: 0.85em; color: #8b949e;">🚚 Delivery</span>
+          <div style="font-weight: bold; color: var(--primary-color);">${deliveryTime || 0} ${(deliveryTime || 0) > 1 ? 'days' : 'day'}</div>
+        </div>
+      </div>
+      <button class="order-inquiry-btn" style="width: 100%; padding: 10px; background: var(--primary-color); color: var(--bg-color); border: none; border-radius: 6px; cursor: pointer; font-weight: 500; transition: all 0.3s ease;">Order Inquiry</button>
+    </div>
   `;
     container.appendChild(itemCard);
   });

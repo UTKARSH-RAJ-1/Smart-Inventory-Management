@@ -36,10 +36,27 @@ const getBatchDetails = (req, res) => {
     }
 };
 
+const getAlerts = (req, res) => {
+    try {
+        const alerts = data.generateInventoryAlerts();
+        res.json({
+            alerts: alerts,
+            totalAlerts: alerts.length,
+            criticalCount: alerts.filter(a => a.severity === 'critical').length,
+            highCount: alerts.filter(a => a.severity === 'high').length,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Error generating alerts:', error);
+        res.status(500).json({ error: 'Failed to generate alerts' });
+    }
+};
+
 module.exports = {
     getExpiryData,
     getRawMaterials,
     getRawMaterialBatches,
     getTraceability,
-    getBatchDetails
+    getBatchDetails,
+    getAlerts
 };
