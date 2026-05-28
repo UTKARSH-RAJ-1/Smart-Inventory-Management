@@ -4,9 +4,19 @@ const data = require('../config/data');
 
 async function seedDatabase() {
     try {
-        // Sync Database
-        await sequelize.sync({ alter: true });
+        // Sync Database - Force recreate to avoid schema conflicts
+        await sequelize.sync({ force: true });
         console.log('✅ Database synced!');
+
+        // Clear existing data
+        await DemandForecast.destroy({ where: {} });
+        await Alert.destroy({ where: {} });
+        await Batch.destroy({ where: {} });
+        await Order.destroy({ where: {} });
+        await Inventory.destroy({ where: {} });
+        await Supplier.destroy({ where: {} });
+        await User.destroy({ where: {} });
+        console.log('🗑️ Cleared existing data');
 
         // --- 1. CREATE ADMIN USER ---
         const hashedPassword = await bcrypt.hash('admin123', 10);
@@ -20,12 +30,14 @@ async function seedDatabase() {
         // --- 2. SEED INVENTORY ---
         console.log('📦 Seeding inventory data...');
         const inventoryItems = [];
+        let batchCounter = 0;
         
-        // Add raw materials
+        // Add raw materials with unique IDs
         for (const material of data.rawMaterialData) {
+            batchCounter++;
             const inv = await Inventory.create({
                 name: material.name,
-                batchId: `RAW-${material.name}-001`,
+                batchId: `RAW-${String(batchCounter).padStart(4, '0')}-${Date.now()}`,
                 quantity: material.current_stock,
                 unit: material.unit,
                 expiryDate: new Date(new Date().getTime() + 90 * 24 * 60 * 60 * 1000), // 90 days
@@ -37,11 +49,12 @@ async function seedDatabase() {
             inventoryItems.push(inv);
         }
 
-        // Add finished goods
+        // Add finished goods with unique IDs
         for (const item of data.expiryData) {
+            batchCounter++;
             const inv = await Inventory.create({
                 name: item.name,
-                batchId: item.batchId,
+                batchId: `FG-${String(batchCounter).padStart(4, '0')}-${item.batchId}`,
                 quantity: item.quantity,
                 unit: item.unit,
                 expiryDate: item.expiryDate,
