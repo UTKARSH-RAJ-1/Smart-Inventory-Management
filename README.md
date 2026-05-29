@@ -318,7 +318,7 @@ We welcome contributions!
 
 - **Issues**: GitHub Issues
 - **Documentation**: Project Wiki
-- **Email**: support@example.com
+- **Email**: autominds1024@gmail.com
 
 ---
 
